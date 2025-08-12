@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForm, SubmitHandler } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,12 +37,12 @@ import { cn } from '@/lib/utils';
 import InputMask from 'react-input-mask';
 
 // Validação de CPF
-const validateCPF = (cpf: string) => {
+const validateCPF = (cpf) => {
   cpf = cpf.replace(/[^\d]+/g, '');
   if (cpf.length !== 11 || !!cpf.match(/(\d)\1{10}/)) return false;
   
   const cpfDigits = cpf.split('').map(el => +el);
-  const rest = (count: number) => {
+  const rest = (count) => {
     return (cpfDigits.slice(0, count-1)
       .reduce((soma, el, index) => (soma + el * (count-index)), 0) * 10) % 11 % 10;
   };
@@ -99,11 +99,9 @@ const patientSchema = z.object({
   reference: z.string().optional(),
 });
 
-type PatientFormData = z.infer<typeof patientSchema>;
-
 const PatientForm = () => {
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [attachments, setAttachments] = useState<File[]>([]);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [attachments, setAttachments] = useState([]);
   const [expandedSections, setExpandedSections] = useState({
     personalData: true,
     observations: false,
@@ -126,40 +124,38 @@ const PatientForm = () => {
     },
   });
 
-  
-
-  const toggleSection = (section: keyof typeof expandedSections) => {
+  const toggleSection = (section) => {
     setExpandedSections(prev => ({
       ...prev,
       [section]: !prev[section]
     }));
   };
 
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = (event) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setPhotoPreview(e.target?.result as string);
+        setPhotoPreview(e.target?.result);
       };
       reader.readAsDataURL(file);
       setValue('photo', file);
     }
   };
 
-  const handleAttachmentUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAttachmentUpload = (event) => {
     const files = Array.from(event.target.files || []);
     setAttachments(prev => [...prev, ...files]);
     setValue('attachments', [...attachments, ...files]);
   };
 
-  const removeAttachment = (index: number) => {
+  const removeAttachment = (index) => {
     const newAttachments = attachments.filter((_, i) => i !== index);
     setAttachments(newAttachments);
     setValue('attachments', newAttachments);
   };
 
-  const searchCEP = async (cep: string) => {
+  const searchCEP = async (cep) => {
     try {
       const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
       const data = await response.json();
@@ -174,7 +170,7 @@ const PatientForm = () => {
     }
   };
 
-  const onSubmit = (data: any) => {
+  const onSubmit = (data) => {
     console.log('Dados do paciente:', data);
     // Aqui você implementaria a lógica de salvamento
   };
@@ -288,7 +284,7 @@ const PatientForm = () => {
                         mask="999.999.999-99"
                         {...register('cpf')}
                       >
-                        {(inputProps: any) => (
+                        {(inputProps) => (
                           <Input
                             {...inputProps}
                             id="cpf"
@@ -330,7 +326,7 @@ const PatientForm = () => {
                   <div className="space-y-3">
                     <Label>Sexo *</Label>
                     <RadioGroup 
-                      onValueChange={(value) => setValue('gender', value as 'masculino' | 'feminino' | 'outro')}
+                      onValueChange={(value) => setValue('gender', value)}
                       className="flex space-x-6"
                       defaultValue="masculino"
                     >
@@ -370,7 +366,7 @@ const PatientForm = () => {
                         <Calendar
                           mode="single"
                           selected={watch('birthDate')}
-                          onSelect={(date) => setValue('birthDate', date!)}
+                          onSelect={(date) => setValue('birthDate', date)}
                           disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
                           initialFocus
                           className="pointer-events-auto"
@@ -438,6 +434,8 @@ const PatientForm = () => {
                         <Label htmlFor="motherProfession">Profissão da Mãe</Label>
                         <Input id="motherProfession" {...register('motherProfession')} />
                       </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="fatherName">Nome do Pai</Label>
                         <Input id="fatherName" {...register('fatherName')} />
@@ -449,9 +447,9 @@ const PatientForm = () => {
                     </div>
                   </div>
 
-                  {/* Responsável */}
+                  {/* Responsável Legal */}
                   <div className="space-y-4">
-                    <h4 className="font-semibold text-foreground">Responsável (para menores)</h4>
+                    <h4 className="font-semibold text-foreground">Responsável Legal (se menor de idade)</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="guardianName">Nome do Responsável</Label>
@@ -463,25 +461,39 @@ const PatientForm = () => {
                           mask="999.999.999-99"
                           {...register('guardianCpf')}
                         >
-                          {(inputProps: any) => <Input {...inputProps} id="guardianCpf" />}
+                          {(inputProps) => (
+                            <Input {...inputProps} id="guardianCpf" />
+                          )}
                         </InputMask>
                       </div>
                     </div>
                   </div>
 
-                  {/* Opções especiais */}
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-2">
-                      <Switch 
-                        id="isNewbornInPlan" 
-                        onCheckedChange={(checked) => setValue('isNewbornInPlan', checked)}
-                      />
-                      <Label htmlFor="isNewbornInPlan">RN na Guia do Convênio</Label>
+                  {/* Outros campos */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="birthPlace">Local de Nascimento</Label>
+                      <Input id="birthPlace" {...register('birthPlace')} />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="legacyCode">Código Legado</Label>
-                      <Input id="legacyCode" {...register('legacyCode')} placeholder="Código do sistema anterior" />
+                      <Label htmlFor="nationality">Nacionalidade</Label>
+                      <Input id="nationality" {...register('nationality')} placeholder="Brasileira" />
                     </div>
+                  </div>
+
+                  {/* Recém-nascido no plano */}
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="isNewbornInPlan"
+                      onCheckedChange={(checked) => setValue('isNewbornInPlan', checked)}
+                    />
+                    <Label htmlFor="isNewbornInPlan">Recém-nascido inscrito no plano</Label>
+                  </div>
+
+                  {/* Código Legacy */}
+                  <div className="space-y-2">
+                    <Label htmlFor="legacyCode">Código do Sistema Anterior</Label>
+                    <Input id="legacyCode" {...register('legacyCode')} />
                   </div>
                 </CardContent>
               </CollapsibleContent>
@@ -504,22 +516,25 @@ const PatientForm = () => {
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <CardContent className="space-y-6">
+                  {/* Observações */}
                   <div className="space-y-2">
                     <Label htmlFor="observations">Observações</Label>
-                    <Textarea 
-                      id="observations" 
+                    <Textarea
+                      id="observations"
                       {...register('observations')}
-                      placeholder="Alergias, restrições, informações importantes..."
-                      rows={4}
+                      placeholder="Adicione observações importantes sobre o paciente..."
+                      className="min-h-[100px]"
                     />
                   </div>
 
+                  {/* Upload de Anexos */}
                   <div className="space-y-4">
-                    <Label>Anexos do Paciente</Label>
+                    <Label>Anexos</Label>
                     <div>
                       <input
                         type="file"
                         multiple
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                         onChange={handleAttachmentUpload}
                         className="hidden"
                         id="attachment-upload"
@@ -528,33 +543,31 @@ const PatientForm = () => {
                         <Button type="button" variant="outline" asChild>
                           <span>
                             <Upload className="h-4 w-4 mr-2" />
-                            Adicionar Anexos
+                            Adicionar Arquivos
                           </span>
                         </Button>
                       </Label>
                     </div>
                     
+                    {/* Lista de anexos */}
                     {attachments.length > 0 && (
                       <div className="space-y-2">
-                        {attachments.map((file, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                            <div className="flex items-center space-x-2">
-                              <FileText className="h-4 w-4 text-medical-blue" />
-                              <span className="text-sm">{file.name}</span>
-                              <Badge variant="secondary" className="text-xs">
-                                {new Date().toLocaleDateString()}
-                              </Badge>
+                        <Label>Arquivos Anexados:</Label>
+                        <div className="space-y-2">
+                          {attachments.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                              <span className="text-sm truncate">{file.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeAttachment(index)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeAttachment(index)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -578,46 +591,59 @@ const PatientForm = () => {
                 </CardHeader>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
+                  {/* Email */}
                   <div className="space-y-2">
-                    <Label htmlFor="email">E-mail</Label>
-                    <Input 
-                      id="email" 
-                      type="email"
-                      {...register('email')}
-                      className={errors.email ? 'border-destructive' : ''}
-                    />
+                    <Label htmlFor="email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-medical-gray" />
+                      <Input
+                        id="email"
+                        type="email"
+                        {...register('email')}
+                        className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
+                        placeholder="email@exemplo.com"
+                      />
+                    </div>
                     {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Telefones */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="cellphone">Celular</Label>
                       <InputMask
-                        mask="+55 (99) 99999-9999"
+                        mask="(99) 99999-9999"
                         {...register('cellphone')}
                       >
-                        {(inputProps: any) => <Input {...inputProps} id="cellphone" />}
+                        {(inputProps) => (
+                          <Input {...inputProps} id="cellphone" />
+                        )}
                       </InputMask>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone1">Telefone 1</Label>
                       <InputMask
-                        mask="+55 (99) 9999-9999"
+                        mask="(99) 9999-9999"
                         {...register('phone1')}
                       >
-                        {(inputProps: any) => <Input {...inputProps} id="phone1" />}
+                        {(inputProps) => (
+                          <Input {...inputProps} id="phone1" />
+                        )}
                       </InputMask>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone2">Telefone 2</Label>
-                      <InputMask
-                        mask="+55 (99) 9999-9999"
-                        {...register('phone2')}
-                      >
-                        {(inputProps: any) => <Input {...inputProps} id="phone2" />}
-                      </InputMask>
-                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone2">Telefone 2</Label>
+                    <InputMask
+                      mask="(99) 9999-9999"
+                      {...register('phone2')}
+                    >
+                      {(inputProps) => (
+                        <Input {...inputProps} id="phone2" />
+                      )}
+                    </InputMask>
                   </div>
                 </CardContent>
               </CollapsibleContent>
@@ -639,42 +665,55 @@ const PatientForm = () => {
                 </CardHeader>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="cep">CEP</Label>
-                      <div className="relative">
-                        <InputMask
-                          mask="99999-999"
-                          {...register('cep')}
-                        >
-                          {(inputProps: any) => <Input {...inputProps} id="cep" />}
-                        </InputMask>
-                        <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-medical-gray" />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="street">Logradouro</Label>
-                      <Input id="street" {...register('street')} />
+                <CardContent className="space-y-6">
+                  {/* CEP */}
+                  <div className="space-y-2">
+                    <Label htmlFor="cep">CEP</Label>
+                    <div className="relative">
+                      <InputMask
+                        mask="99999-999"
+                        {...register('cep')}
+                      >
+                        {(inputProps) => (
+                          <Input {...inputProps} id="cep" placeholder="00000-000" />
+                        )}
+                      </InputMask>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1"
+                        onClick={() => watchedCep && searchCEP(watchedCep.replace('-', ''))}
+                      >
+                        <Search className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
 
+                  {/* Endereço completo */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="street">Rua/Logradouro</Label>
+                      <Input id="street" {...register('street')} />
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="number">Número</Label>
                       <Input id="number" {...register('number')} />
                     </div>
-                    <div className="space-y-2 md:col-span-2">
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
                       <Label htmlFor="complement">Complemento</Label>
                       <Input id="complement" {...register('complement')} />
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="neighborhood">Bairro</Label>
                       <Input id="neighborhood" {...register('neighborhood')} />
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="city">Cidade</Label>
                       <Input id="city" {...register('city')} />
@@ -686,8 +725,8 @@ const PatientForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="reference">Referência</Label>
-                    <Input id="reference" {...register('reference')} placeholder="Ponto de referência..." />
+                    <Label htmlFor="reference">Ponto de Referência</Label>
+                    <Input id="reference" {...register('reference')} placeholder="Ex: Próximo ao mercado..." />
                   </div>
                 </CardContent>
               </CollapsibleContent>
@@ -696,21 +735,13 @@ const PatientForm = () => {
 
           {/* Botões de Ação */}
           <div className="flex flex-col sm:flex-row gap-4 pt-6">
-            <Button 
-              type="submit" 
-              className="flex-1 bg-gradient-to-r from-medical-blue to-primary hover:from-medical-blue/90 hover:to-primary/90 text-white font-medium py-3"
-            >
-              <Save className="h-5 w-5 mr-2" />
-              Salvar Paciente
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              className="flex-1 py-3"
-              onClick={() => window.history.back()}
-            >
-              <ArrowLeft className="h-5 w-5 mr-2" />
+            <Button type="button" variant="outline" className="flex-1">
+              <ArrowLeft className="h-4 w-4 mr-2" />
               Cancelar
+            </Button>
+            <Button type="submit" className="flex-1 bg-medical-blue hover:bg-medical-blue/90">
+              <Save className="h-4 w-4 mr-2" />
+              Salvar Paciente
             </Button>
           </div>
         </form>
